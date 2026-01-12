@@ -67,7 +67,16 @@ const keyCSS = css`
 `;
 
 interface FloatingChatboxProps {
-  onSendMessage?: (message: string) => Promise<string> | string;
+  /**
+   * Handler for sending messages. Supports streaming via optional onChunk callback.
+   * @param message - The message to send
+   * @param onChunk - Optional callback for streaming chunks
+   * @returns Promise resolving to the full response
+   */
+  onSendMessage?: (
+    message: string,
+    onChunk?: (chunk: string) => void
+  ) => Promise<string> | string;
   placeholder?: string;
   isVisible?: boolean;
 }
@@ -81,6 +90,9 @@ export function FloatingChatbox({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null
+  );
 
   const handleOpenSidebar = () => {
     setIsSidebarOpen(true);
@@ -103,43 +115,80 @@ export function FloatingChatbox({
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, userMessage]);
+      const assistantMessageId = `assistant-${Date.now()}`;
+
+      // Add user message and empty assistant message for streaming
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+        },
+      ]);
       setMessage("");
       setIsSending(true);
+      setStreamingMessageId(assistantMessageId);
 
       try {
         let response: string;
         if (onSendMessage) {
-          const result = onSendMessage(text);
-          response =
-            result instanceof Promise ? await result : result;
+          // Try streaming first with onChunk callback
+          const result = onSendMessage(text, (chunk: string) => {
+            // Update the streaming message with each chunk
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessageId
+                  ? { ...msg, content: msg.content + chunk }
+                  : msg
+              )
+            );
+          });
+          response = result instanceof Promise ? await result : result;
+
+          // Final update with complete response (in case streaming didn't work)
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId
+                ? {
+                    ...msg,
+                    content: response || msg.content,
+                    searchIndicator: text.includes("?")
+                      ? `Analyzed: ${text.split(" ").slice(0, 3).join(" ")}...`
+                      : undefined,
+                  }
+                : msg
+            )
+          );
         } else {
           // Demo response if no handler provided
           await new Promise((resolve) => setTimeout(resolve, 1000));
           response = `You asked: "${text}"\n\nThis is a demo response. Connect an AI backend to get real answers.`;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === assistantMessageId ? { ...msg, content: response } : msg
+            )
+          );
         }
-
-        const assistantMessage: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          content: response,
-          timestamp: new Date(),
-          searchIndicator: text.includes("?")
-            ? `Found results for ${text.split(" ").slice(0, 3).join(" ")}`
-            : undefined,
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
       } catch (error) {
-        const errorMessage: ChatMessage = {
-          id: `error-${Date.now()}`,
-          role: "assistant",
-          content: "Sorry, there was an error processing your request.",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
+        // Update the streaming message with error
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? {
+                  ...msg,
+                  content:
+                    msg.content ||
+                    "Sorry, there was an error processing your request.",
+                }
+              : msg
+          )
+        );
       } finally {
         setIsSending(false);
+        setStreamingMessageId(null);
       }
     },
     [onSendMessage]

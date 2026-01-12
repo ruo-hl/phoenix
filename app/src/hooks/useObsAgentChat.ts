@@ -12,24 +12,17 @@ interface UseObsAgentChatOptions {
    * Phoenix project name to analyze
    */
   projectName?: string;
-  /**
-   * Use streaming responses (SSE)
-   */
-  streaming?: boolean;
 }
 
 interface UseObsAgentChatReturn {
   /**
-   * Send a message to the OBS agent
+   * Send a message with streaming response (recommended)
+   * Returns the full response when complete
    */
-  sendMessage: (message: string) => Promise<string>;
-  /**
-   * Send a message with streaming response
-   */
-  sendMessageStreaming: (
+  sendMessage: (
     message: string,
-    onChunk: (chunk: string) => void
-  ) => Promise<void>;
+    onChunk?: (chunk: string) => void
+  ) => Promise<string>;
   /**
    * Reset the current session
    */
@@ -53,15 +46,18 @@ interface UseObsAgentChatReturn {
 }
 
 /**
- * Hook for communicating with the OBS Agent API.
+ * Hook for communicating with the OBS Agent API with streaming support.
  *
  * @example
  * ```tsx
- * const { sendMessage, isLoading, error } = useObsAgentChat();
+ * const { sendMessage, isLoading } = useObsAgentChat();
  *
+ * // With streaming callback for real-time updates
  * const handleSend = async (text: string) => {
- *   const response = await sendMessage(text);
- *   console.log(response);
+ *   const response = await sendMessage(text, (chunk) => {
+ *     console.log("Received chunk:", chunk);
+ *   });
+ *   console.log("Complete response:", response);
  * };
  * ```
  */
@@ -78,12 +74,17 @@ export function useObsAgentChat(
   sessionIdRef.current = sessionId;
 
   const sendMessage = useCallback(
-    async (message: string): Promise<string> => {
+    async (
+      message: string,
+      onChunk?: (chunk: string) => void
+    ): Promise<string> => {
       setError(null);
       setIsLoading(true);
 
+      let fullResponse = "";
+
       try {
-        const response = await fetch(`${OBS_AGENT_URL}/api/chat`, {
+        const response = await fetch(`${OBS_AGENT_URL}/api/chat/stream`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -100,52 +101,6 @@ export function useObsAgentChat(
           throw new Error(
             errorData.detail || `HTTP ${response.status}: ${response.statusText}`
           );
-        }
-
-        const data = await response.json();
-
-        if (!sessionIdRef.current && data.session_id) {
-          setSessionId(data.session_id);
-        }
-        setIsConnected(true);
-
-        return data.response;
-      } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error";
-        setError(errorMessage);
-        setIsConnected(false);
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [options.projectName]
-  );
-
-  const sendMessageStreaming = useCallback(
-    async (
-      message: string,
-      onChunk: (chunk: string) => void
-    ): Promise<void> => {
-      setError(null);
-      setIsLoading(true);
-
-      try {
-        const response = await fetch(`${OBS_AGENT_URL}/api/chat/stream`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message,
-            session_id: sessionIdRef.current,
-            project_name: options.projectName,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const reader = response.body?.getReader();
@@ -172,18 +127,24 @@ export function useObsAgentChat(
                     setSessionId(data.session_id);
                   }
                 } else if (data.type === "content") {
-                  onChunk(data.content);
+                  fullResponse += data.content;
+                  onChunk?.(data.content);
                 } else if (data.type === "error") {
                   throw new Error(data.error);
                 }
+                // "done" type signals completion
               } catch (parseErr) {
-                // Skip invalid JSON lines
+                // Skip invalid JSON lines (not a parse error for SSE)
+                if (parseErr instanceof Error && parseErr.message) {
+                  throw parseErr;
+                }
               }
             }
           }
         }
 
         setIsConnected(true);
+        return fullResponse;
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
@@ -214,7 +175,6 @@ export function useObsAgentChat(
 
   return {
     sendMessage,
-    sendMessageStreaming,
     resetSession,
     sessionId,
     isConnected,

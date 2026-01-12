@@ -303,23 +303,22 @@ export function ChatSidebar({
                 <div css={userMessageCSS}>{message.content}</div>
               ) : (
                 <div css={assistantMessageCSS}>
-                  <Markdown remarkPlugins={[remarkGfm]}>
-                    {message.content}
-                  </Markdown>
+                  {message.content ? (
+                    <Markdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </Markdown>
+                  ) : (
+                    isSending && (
+                      <Flex alignItems="center" gap="size-100">
+                        <Icon svg={<Icons.LoadingOutline />} />
+                        <span>Analyzing...</span>
+                      </Flex>
+                    )
+                  )}
                 </div>
               )}
             </div>
           ))}
-          {isSending && (
-            <div css={messageCSS}>
-              <div css={assistantMessageCSS}>
-                <Flex alignItems="center" gap="size-100">
-                  <Icon svg={<Icons.LoadingOutline />} />
-                  <span>Thinking...</span>
-                </Flex>
-              </div>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
 
