@@ -8,6 +8,7 @@ import { FunctionalityProvider } from "./contexts/FunctionalityContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { ThemeProvider } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
+import { useObsAgentChat } from "./hooks";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
 
@@ -24,6 +25,8 @@ export function App() {
 }
 
 export function AppContent() {
+  const { sendMessage } = useObsAgentChat();
+
   return (
     <RelayEnvironmentProvider environment={RelayEnvironment}>
       <GlobalStyles />
@@ -33,7 +36,10 @@ export function AppContent() {
             <Suspense>
               <AppRoutes />
             </Suspense>
-            <FloatingChatbox />
+            <FloatingChatbox
+              onSendMessage={sendMessage}
+              placeholder="Ask about observability issues..."
+            />
           </CredentialsProvider>
         </PreferencesProvider>
       </FeatureFlagsProvider>
