@@ -222,6 +222,18 @@ export function ChatSidebar({
   const [inputValue, setInputValue] = useState("");
   const [isClosing, setIsClosing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when sidebar opens
+  useEffect(() => {
+    if (isOpen && !isClosing) {
+      // Small delay to ensure the sidebar animation has started
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isClosing]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -333,7 +345,7 @@ export function ChatSidebar({
                 aria-label="Message input"
                 isDisabled={isSending}
               >
-                <Input placeholder="Ask a question..." />
+                <Input ref={inputRef} placeholder="Ask a question..." />
               </TextField>
             </div>
             <Button
