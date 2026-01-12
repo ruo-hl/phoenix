@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { css, keyframes } from "@emotion/react";
@@ -52,8 +52,8 @@ const sidebarContainerCSS = css`
   top: 0;
   right: 0;
   bottom: 0;
-  width: 450px;
-  max-width: 100vw;
+  min-width: 350px;
+  max-width: 80vw;
   background-color: var(--ac-global-color-grey-50);
   border-left: 1px solid var(--ac-global-color-grey-300);
   z-index: 1001;
@@ -62,6 +62,31 @@ const sidebarContainerCSS = css`
   animation: ${slideIn} 250ms ease-out;
   &[data-closing="true"] {
     animation: ${slideOut} 200ms ease-out forwards;
+  }
+`;
+
+const resizeHandleCSS = css`
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 10;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: transparent;
+    transition: background-color 0.2s ease;
+  }
+  &:hover::after,
+  &[data-dragging="true"]::after {
+    background-color: var(--ac-global-color-primary);
   }
 `;
 
@@ -183,6 +208,43 @@ const inputContainerCSS = css`
   flex-shrink: 0;
 `;
 
+const collapsibleSectionCSS = css`
+  border: 1px solid var(--ac-global-color-grey-300);
+  border-radius: var(--ac-global-dimension-size-100);
+  margin: var(--ac-global-dimension-size-100) 0;
+  overflow: hidden;
+`;
+
+const collapsibleHeaderCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ac-global-dimension-size-100) var(--ac-global-dimension-size-150);
+  background-color: var(--ac-global-color-grey-100);
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--ac-global-font-size-xs);
+  font-weight: 500;
+  color: var(--ac-global-text-color-700);
+  &:hover {
+    background-color: var(--ac-global-color-grey-200);
+  }
+`;
+
+const collapsibleContentCSS = css`
+  padding: var(--ac-global-dimension-size-100);
+  background-color: var(--ac-global-color-grey-50);
+  max-height: 400px;
+  overflow-y: auto;
+`;
+
+const chevronCSS = css`
+  transition: transform 0.2s ease;
+  &[data-expanded="true"] {
+    transform: rotate(90deg);
+  }
+`;
+
 const inputWrapperCSS = css`
   display: flex;
   align-items: center;
@@ -211,6 +273,54 @@ interface ChatSidebarProps {
   onClearChat?: () => void;
 }
 
+// Collapsible section for code output
+function CollapsibleSection({
+  title,
+  children,
+  defaultExpanded = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  return (
+    <div css={collapsibleSectionCSS}>
+      <div css={collapsibleHeaderCSS} onClick={() => setIsExpanded(!isExpanded)}>
+        <span>{title}</span>
+        <span css={chevronCSS} data-expanded={isExpanded}>
+          ▶
+        </span>
+      </div>
+      {isExpanded && <div css={collapsibleContentCSS}>{children}</div>}
+    </div>
+  );
+}
+
+// Parse message content to separate analysis from code output
+function parseMessageContent(content: string): {
+  analysis: string;
+  codeOutputs: { title: string; content: string }[];
+} {
+  const parts = content.split(/---+/);
+  const analysis = parts[0]?.trim() || "";
+  const codeOutputs: { title: string; content: string }[] = [];
+
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i].trim();
+    if (part) {
+      // Extract title if it starts with **Title:**
+      const titleMatch = part.match(/^\*\*([^*]+)\*\*:?\s*/);
+      const title = titleMatch ? titleMatch[1] : `Output ${i}`;
+      const outputContent = titleMatch ? part.replace(titleMatch[0], "") : part;
+      codeOutputs.push({ title, content: outputContent.trim() });
+    }
+  }
+
+  return { analysis, codeOutputs };
+}
+
 export function ChatSidebar({
   isOpen,
   onClose,
@@ -221,13 +331,15 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const [inputValue, setInputValue] = useState("");
   const [isClosing, setIsClosing] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(500);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Focus input when sidebar opens
   useEffect(() => {
     if (isOpen && !isClosing) {
-      // Small delay to ensure the sidebar animation has started
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
@@ -242,6 +354,34 @@ export function ChatSidebar({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle resize drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX;
+      const clampedWidth = Math.max(350, Math.min(newWidth, window.innerWidth * 0.8));
+      setSidebarWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
 
   const handleClose = () => {
     setIsClosing(true);
@@ -269,6 +409,32 @@ export function ChatSidebar({
     return null;
   }
 
+  // Render message content with collapsible code outputs
+  const renderMessageContent = (content: string) => {
+    const { analysis, codeOutputs } = parseMessageContent(content);
+
+    return (
+      <>
+        {analysis && (
+          <Markdown remarkPlugins={[remarkGfm]}>
+            {analysis}
+          </Markdown>
+        )}
+        {codeOutputs.map((output, index) => (
+          <CollapsibleSection
+            key={index}
+            title={output.title}
+            defaultExpanded={false}
+          >
+            <Markdown remarkPlugins={[remarkGfm]}>
+              {output.content}
+            </Markdown>
+          </CollapsibleSection>
+        ))}
+      </>
+    );
+  };
+
   return (
     <>
       <div
@@ -276,7 +442,19 @@ export function ChatSidebar({
         data-closing={isClosing}
         onClick={handleClose}
       />
-      <div css={sidebarContainerCSS} data-closing={isClosing}>
+      <div
+        ref={sidebarRef}
+        css={sidebarContainerCSS}
+        style={{ width: sidebarWidth }}
+        data-closing={isClosing}
+      >
+        {/* Resize handle */}
+        <div
+          css={resizeHandleCSS}
+          data-dragging={isDragging}
+          onMouseDown={handleMouseDown}
+        />
+
         <div css={sidebarHeaderCSS}>
           <div css={headerTitleCSS}>
             <Icon svg={<Icons.BulbOutline />} />
@@ -316,9 +494,7 @@ export function ChatSidebar({
               ) : (
                 <div css={assistantMessageCSS}>
                   {message.content ? (
-                    <Markdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
-                    </Markdown>
+                    renderMessageContent(message.content)
                   ) : (
                     isSending && (
                       <Flex alignItems="center" gap="size-100">
