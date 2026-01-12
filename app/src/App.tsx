@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { RelayEnvironmentProvider } from "react-relay";
 
+import { FloatingChatbox } from "./components/chat";
 import { CredentialsProvider } from "./contexts/CredentialsContext";
 import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { FunctionalityProvider } from "./contexts/FunctionalityContext";
@@ -32,6 +33,7 @@ export function AppContent() {
             <Suspense>
               <AppRoutes />
             </Suspense>
+            <FloatingChatbox />
           </CredentialsProvider>
         </PreferencesProvider>
       </FeatureFlagsProvider>
