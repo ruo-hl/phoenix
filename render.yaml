@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: phoenix
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /healthz
+    envVars:
+      - key: PHOENIX_SQL_DATABASE_URL
+        fromDatabase:
+          name: phoenix-db
+          property: connectionString
+      - key: PHOENIX_SECRET
+        generateValue: true
+      - key: PHOENIX_ENABLE_AUTH
+        value: "true"
+
+databases:
+  - name: phoenix-db
+    plan: starter
