@@ -42,12 +42,14 @@ import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { ContextualHelp } from "@phoenix/components/tooltip/ContextualHelp";
+import { HealthBadge } from "@phoenix/components/trace/HealthBadge";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import { ISpanItem } from "@phoenix/components/trace/types";
+import { useTracesHealth } from "@phoenix/hooks/useWorkflowHealth";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { Truncate } from "@phoenix/components/utility/Truncate";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
@@ -198,6 +200,7 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { fetchKey } = useStreamState();
+
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -323,6 +326,14 @@ export function TracesTable(props: TracesTableProps) {
       `,
       props.project
     );
+
+  // Fetch workflow health scores for traces
+  const { healthScores } = useTracesHealth({
+    projectName: data.name,
+    hours: 1,
+    limit: 100,
+    enabled: !!data.name,
+  });
 
   const annotationColumnVisibility = useTracingContext(
     (state) => state.annotationColumnVisibility
@@ -530,6 +541,37 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
       {
+        header: () => (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <span>health</span>
+            <ContextualHelp>
+              <Heading level={3} weight="heavy">
+                Workflow Health
+              </Heading>
+              <Text>
+                Health score based on workflow pattern analysis. Detects missing
+                verifications, retry loops, and other anomalies.
+              </Text>
+            </ContextualHelp>
+          </Flex>
+        ),
+        id: "workflowHealth",
+        enableSorting: false,
+        minSize: 70,
+        maxSize: 90,
+        cell: ({ row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const traceId = row.original.trace.traceId;
+          const healthScore = healthScores.get(traceId);
+          if (healthScore === undefined) {
+            return <Text color="text-500">--</Text>;
+          }
+          return <HealthBadge score={healthScore} size="S" />;
+        },
+      },
+      {
         header: ({ table }) => {
           return (
             <Flex gap="size-50" direction="row" alignItems="center">
@@ -689,7 +731,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns]
+    [annotationColumns, healthScores]
   );
 
   useEffect(() => {

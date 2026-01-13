@@ -1,4 +1,4 @@
-import { PropsWithChildren, Suspense, useMemo } from "react";
+import { PropsWithChildren, Suspense, useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
@@ -17,10 +17,13 @@ import {
   View,
 } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { AnomalyBanner } from "@phoenix/components/trace/AnomalyBanner";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
+import { WorkflowGraphView } from "@phoenix/components/trace/WorkflowGraphView";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useTraceWorkflow } from "@phoenix/hooks/useWorkflowHealth";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
@@ -109,6 +112,16 @@ export function TraceDetails(props: TraceDetailsProps) {
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
+  // Workflow health analysis - need project name from URL params
+  const { projectId: projectName } = useParams();
+  const [showWorkflowGraph, setShowWorkflowGraph] = useState(false);
+  const { analysis: workflowAnalysis } = useTraceWorkflow({
+    projectName: projectName || "",
+    traceId: traceId,
+    includeGraph: true,
+    enabled: !!projectName && !!traceId,
+  });
+
   return (
     <main
       css={css`
@@ -124,6 +137,19 @@ export function TraceDetails(props: TraceDetailsProps) {
         costSummary={costSummary}
         sessionId={data.project.trace?.projectSessionId}
       />
+      {workflowAnalysis && (
+        <>
+          <AnomalyBanner
+            analysis={workflowAnalysis}
+            onViewWorkflow={() => setShowWorkflowGraph(true)}
+          />
+          <WorkflowGraphView
+            analysis={workflowAnalysis}
+            isOpen={showWorkflowGraph}
+            onClose={() => setShowWorkflowGraph(false)}
+          />
+        </>
+      )}
       <PanelGroup
         direction="horizontal"
         autoSaveId="trace-panel-group"

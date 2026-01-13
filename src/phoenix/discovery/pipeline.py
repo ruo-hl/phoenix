@@ -126,7 +126,7 @@ class IssueDiscoveryPipeline:
             trace_ids = trace_ids[: self.config.max_traces]
 
         # 3. Fetch annotations (eval results)
-        annotations_df = self._fetch_annotations(project)
+        annotations_df = self._fetch_annotations(project, spans_df)
 
         # 4. Extract features for each trace
         logger.info("Extracting features...")
@@ -213,11 +213,14 @@ class IssueDiscoveryPipeline:
             logger.error(f"Failed to fetch spans: {e}")
             return pd.DataFrame()
 
-    def _fetch_annotations(self, project: str) -> Optional[pd.DataFrame]:
+    def _fetch_annotations(self, project: str, spans_df: pd.DataFrame) -> Optional[pd.DataFrame]:
         """Fetch annotations (eval results) from Phoenix."""
         try:
+            if len(spans_df) == 0:
+                return None
             return self.phoenix_client.spans.get_span_annotations_dataframe(
-                project_name=project,
+                spans_dataframe=spans_df,
+                project_identifier=project,
             )
         except Exception as e:
             logger.warning(f"Failed to fetch annotations: {e}")

@@ -9,3 +9,4 @@ export * from "./useDimensions";
 export * from "./useTimeFormatters";
 export * from "./useCurrentTime";
 export * from "./useObsAgentChat";
+export * from "./useWorkflowHealth";

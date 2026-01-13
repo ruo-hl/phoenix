@@ -223,21 +223,42 @@ def extract_features_from_spans(
     quality_score = None
     grounding_score = None
     if annotations_df is not None and len(annotations_df) > 0:
-        trace_annotations = annotations_df[
-            annotations_df["span_id"].isin(trace_spans["context.span_id"])
-        ]
+        # Annotations are indexed by span_id
+        span_ids = trace_spans["context.span_id"].tolist()
+
+        # Filter annotations for this trace's spans (index is span_id)
+        if annotations_df.index.name == "span_id":
+            trace_annotations = annotations_df[annotations_df.index.isin(span_ids)]
+        elif "identifier" in annotations_df.columns:
+            # Try identifier column if populated
+            non_empty = annotations_df[annotations_df["identifier"] != ""]
+            if len(non_empty) > 0:
+                trace_annotations = non_empty[non_empty["identifier"].isin(span_ids)]
+            else:
+                trace_annotations = pd.DataFrame()
+        else:
+            trace_annotations = pd.DataFrame()
+
         if len(trace_annotations) > 0:
+            # Column name is "annotation_name" or "name"
+            name_col = "annotation_name" if "annotation_name" in trace_annotations.columns else "name"
+            score_col = "result.score" if "result.score" in trace_annotations.columns else "score"
+
             quality_rows = trace_annotations[
-                trace_annotations["name"].str.contains("quality", case=False, na=False)
+                trace_annotations[name_col].str.contains("quality", case=False, na=False)
             ]
             if len(quality_rows) > 0:
-                quality_score = float(quality_rows.iloc[0].get("score", 0.5))
+                score_val = quality_rows.iloc[0].get(score_col)
+                if pd.notna(score_val):
+                    quality_score = float(score_val)
 
             grounding_rows = trace_annotations[
-                trace_annotations["name"].str.contains("grounding", case=False, na=False)
+                trace_annotations[name_col].str.contains("grounding", case=False, na=False)
             ]
             if len(grounding_rows) > 0:
-                grounding_score = float(grounding_rows.iloc[0].get("score", 0.5))
+                score_val = grounding_rows.iloc[0].get(score_col)
+                if pd.notna(score_val):
+                    grounding_score = float(score_val)
 
     # Clean up provider value
     if not provider or provider == "nan":
