@@ -26,6 +26,11 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:22-slim AS frontend-builder
+
+# Build args for frontend env vars (set via --build-arg or Render dashboard)
+ARG VITE_OBS_AGENT_URL=""
+ENV VITE_OBS_AGENT_URL=${VITE_OBS_AGENT_URL}
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV PHOENIX_ENABLE_SOURCE_MAP=True

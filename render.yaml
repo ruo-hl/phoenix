@@ -3,9 +3,12 @@ services:
     name: phoenix
     runtime: docker
     dockerfilePath: ./Dockerfile
+    dockerCommand: ""
     plan: starter
     healthCheckPath: /healthz
     envVars:
+      - key: VITE_OBS_AGENT_URL
+        value: ""  # Set to your obs_agent URL after deploying it first
       - key: PHOENIX_SQL_DATABASE_URL
         fromDatabase:
           name: phoenix-db
