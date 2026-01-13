@@ -28,7 +28,7 @@ ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 FROM node:22-slim AS frontend-builder
 
 # Build args for frontend env vars (set via --build-arg or Render dashboard)
-ARG VITE_OBS_AGENT_URL=""
+ARG VITE_OBS_AGENT_URL="https://ai-obs-demo.onrender.com"
 ENV VITE_OBS_AGENT_URL=${VITE_OBS_AGENT_URL}
 
 ENV PNPM_HOME="/pnpm"
@@ -40,7 +40,7 @@ RUN npm i -g corepack
 RUN corepack enable
 RUN corepack install
 RUN pnpm install
-RUN pnpm run build
+RUN NODE_ENV=production pnpm run build
 
 # The second stage builds the backend.
 FROM python:3.11-bullseye as backend-builder
