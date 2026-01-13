@@ -19,9 +19,9 @@
 # - https://arize-ai.slack.com/join/shared_invite/zt-2w57bhem8-hq24MB6u7yE_ZF_ilOYSBw#/shared-invite/email
 # - https://github.com/Arize-ai/phoenix/issues
 
-ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
+# ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot
 # To deploy it on an arm64, like Raspberry Pi or Apple-Silicon, chose this image instead:
-# ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
+ARG BASE_IMAGE=gcr.io/distroless/python3-debian12:nonroot-arm64
 
 # This Dockerfile is a multi-stage build. The first stage builds the frontend.
 FROM node:22-slim AS frontend-builder
@@ -75,4 +75,4 @@ EXPOSE 9090
 # Run the Phoenix server. Note that the ENTRYPOINT of the base image invokes
 # Python, so no explicit invocation of Python is needed here. See
 # https://github.com/GoogleContainerTools/distroless/blob/16dc4a6a33838006fe956e4c19f049ece9c18a8d/python3/BUILD#L55
-CMD ["-m", "phoenix.server.main", "serve"]
+CMD ["-m", "phoenix.server.main", "--dev", "serve"]
