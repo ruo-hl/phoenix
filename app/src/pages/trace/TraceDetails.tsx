@@ -7,6 +7,7 @@ import invariant from "tiny-invariant";
 import { css } from "@emotion/react";
 
 import {
+  Button,
   Flex,
   LinkButton,
   Loading,
@@ -138,6 +139,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         costSummary={costSummary}
         sessionId={data.project.trace?.projectSessionId}
       />
+      {/* Always show workflow button, anomaly banner only when issues detected */}
       {workflowAnalysis && (
         <>
           <AnomalyBanner
@@ -150,6 +152,22 @@ export function TraceDetails(props: TraceDetailsProps) {
             onClose={() => setShowWorkflowGraph(false)}
           />
         </>
+      )}
+      {/* Show View Workflow button in header area when no anomalies but analysis exists */}
+      {workflowAnalysis && workflowAnalysis.health_score >= 0.8 && (
+        <View
+          padding="size-100"
+          borderBottomWidth="thin"
+          borderBottomColor="grey-300"
+        >
+          <Button
+            variant="default"
+            size="S"
+            onPress={() => setShowWorkflowGraph(true)}
+          >
+            View Workflow DAG
+          </Button>
+        </View>
       )}
       <PanelGroup
         direction="horizontal"
