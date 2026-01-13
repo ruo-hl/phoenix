@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState, useTransition } from "react";
+import { Suspense, useCallback, useTransition } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -6,14 +6,13 @@ import { css } from "@emotion/react";
 import {
   Button,
   Card,
-  CardBody,
   Flex,
   Heading,
   ProgressCircle,
   Text,
   View,
 } from "@phoenix/components";
-import { Loading } from "@phoenix/components/loading/Loading";
+import { Loading } from "@phoenix/components/loading";
 
 import { ProjectIssuesPageMutation } from "./__generated__/ProjectIssuesPageMutation.graphql";
 import { ProjectIssuesPageQuery } from "./__generated__/ProjectIssuesPageQuery.graphql";
@@ -34,6 +33,9 @@ const gridCSS = css`
 `;
 
 const clusterCardCSS = css`
+  padding: var(--ac-global-dimension-size-100);
+  border-radius: var(--ac-global-rounding-medium);
+  background-color: var(--ac-global-color-grey-100);
   cursor: pointer;
   transition: background-color 0.2s;
   &:hover {
@@ -72,33 +74,31 @@ function ClusterCard({
   const badnessPercent = Math.round(cluster.badnessRate * 100);
 
   return (
-    <Card css={clusterCardCSS}>
-      <CardBody>
-        <Flex direction="column" gap="size-100">
-          <Flex justifyContent="space-between" alignItems="center">
-            <Heading level={4}>Cluster {cluster.clusterIndex}</Heading>
-            <Text color={badnessPercent > 30 ? "danger" : "default"}>
-              {badnessPercent}% bad
-            </Text>
-          </Flex>
-          <div css={badnessBarCSS}>
-            <div
-              css={badnessFillCSS}
-              style={{ width: `${badnessPercent}%` }}
-            />
-          </div>
-          <Text size="S" color="text-700">
-            {cluster.size} traces
+    <div css={clusterCardCSS}>
+      <Flex direction="column" gap="size-100">
+        <Flex justifyContent="space-between" alignItems="center">
+          <Heading level={4}>Cluster {cluster.clusterIndex}</Heading>
+          <Text color={badnessPercent > 30 ? "danger" : "default"}>
+            {badnessPercent}% bad
           </Text>
-          {cluster.dominantIntent && (
-            <Text size="S">Intent: {cluster.dominantIntent}</Text>
-          )}
-          {cluster.dominantModel && (
-            <Text size="S">Model: {cluster.dominantModel}</Text>
-          )}
         </Flex>
-      </CardBody>
-    </Card>
+        <div css={badnessBarCSS}>
+          <div
+            css={badnessFillCSS}
+            style={{ width: `${badnessPercent}%` }}
+          />
+        </div>
+        <Text size="S" color="text-700">
+          {cluster.size} traces
+        </Text>
+        {cluster.dominantIntent && (
+          <Text size="S">Intent: {cluster.dominantIntent}</Text>
+        )}
+        {cluster.dominantModel && (
+          <Text size="S">Model: {cluster.dominantModel}</Text>
+        )}
+      </Flex>
+    </div>
   );
 }
 
@@ -261,65 +261,46 @@ function IssuesContent({ projectId }: { projectId: string }) {
         </Flex>
 
         {!discoveryRun ? (
-          <Card>
-            <CardBody>
-              <Flex
-                direction="column"
-                alignItems="center"
-                justifyContent="center"
-                gap="size-200"
-                UNSAFE_style={{ padding: "48px" }}
-              >
-                <Heading level={3}>No Discovery Results</Heading>
-                <Text color="text-700">
-                  Run discovery to analyze your traces and find failure patterns.
-                </Text>
-                <Button variant="primary" onPress={handleRunDiscovery}>
-                  Run Discovery
-                </Button>
-              </Flex>
-            </CardBody>
+          <Card title="No Discovery Results">
+            <Flex
+              direction="column"
+              alignItems="center"
+              justifyContent="center"
+              gap="size-200"
+              UNSAFE_style={{ padding: "48px 48px 64px 48px" }}
+            >
+              <Text color="text-700">
+                Run discovery to analyze your traces and find failure patterns.
+              </Text>
+              <Button variant="primary" onPress={handleRunDiscovery}>
+                Run Discovery
+              </Button>
+            </Flex>
           </Card>
         ) : (
           <div css={gridCSS}>
             {/* Clusters Section */}
-            <Card>
-              <CardBody>
-                <Flex direction="column" gap="size-200">
-                  <Heading level={3}>Top Clusters</Heading>
-                  <Text color="text-700" size="S">
-                    Clusters with highest badness rates
-                  </Text>
-                  <Flex direction="column" gap="size-100">
-                    {discoveryRun.clusters.slice(0, 5).map((cluster) => (
-                      <ClusterCard key={cluster.id} cluster={cluster} />
-                    ))}
-                    {discoveryRun.clusters.length === 0 && (
-                      <Text color="text-700">No clusters found</Text>
-                    )}
-                  </Flex>
-                </Flex>
-              </CardBody>
+            <Card title="Top Clusters" subTitle="Clusters with highest badness rates">
+              <Flex direction="column" gap="size-100">
+                {discoveryRun.clusters.slice(0, 5).map((cluster) => (
+                  <ClusterCard key={cluster.id} cluster={cluster} />
+                ))}
+                {discoveryRun.clusters.length === 0 && (
+                  <Text color="text-700">No clusters found</Text>
+                )}
+              </Flex>
             </Card>
 
             {/* Slices Section */}
-            <Card>
-              <CardBody>
-                <Flex direction="column" gap="size-200">
-                  <Heading level={3}>Top Slices</Heading>
-                  <Text color="text-700" size="S">
-                    Attribute combinations with elevated badness
-                  </Text>
-                  <Flex direction="column">
-                    {discoveryRun.topSlices.slice(0, 10).map((slice) => (
-                      <SliceRow key={slice.id} slice={slice} />
-                    ))}
-                    {discoveryRun.topSlices.length === 0 && (
-                      <Text color="text-700">No significant slices found</Text>
-                    )}
-                  </Flex>
-                </Flex>
-              </CardBody>
+            <Card title="Top Slices" subTitle="Attribute combinations with elevated badness">
+              <Flex direction="column">
+                {discoveryRun.topSlices.slice(0, 10).map((slice) => (
+                  <SliceRow key={slice.id} slice={slice} />
+                ))}
+                {discoveryRun.topSlices.length === 0 && (
+                  <Text color="text-700">No significant slices found</Text>
+                )}
+              </Flex>
             </Card>
           </div>
         )}

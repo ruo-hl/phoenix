@@ -1826,6 +1826,7 @@ type Mutation {
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
+  runTraceDiscovery(input: RunTraceDiscoveryInput!): TraceDiscoveryRun!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
 
   """
@@ -2055,6 +2056,12 @@ type Project implements Node {
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
   updatedAt: DateTime!
+
+  """Get the most recent completed trace discovery run for this project"""
+  latestDiscoveryRun: TraceDiscoveryRun
+
+  """Get recent trace discovery runs for this project"""
+  discoveryRuns(limit: Int! = 10): [TraceDiscoveryRun!]!
   spanCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig, filterCondition: String): SpanCountTimeSeries!
   traceCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountTimeSeries!
   traceCountByStatusTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceCountByStatusTimeSeries!
@@ -2562,6 +2569,14 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
+}
+
+input RunTraceDiscoveryInput {
+  """The project to analyze"""
+  projectId: ID!
+
+  """Number of days of trace history to analyze"""
+  daysBack: Int! = 7
 }
 
 enum ScalarDriftMetric {
@@ -3162,6 +3177,38 @@ input TraceAnnotationSort {
   dir: SortDir!
 }
 
+type TraceCluster {
+  """Unique identifier for the cluster"""
+  id: ID!
+
+  """Index of the cluster (0-based)"""
+  clusterIndex: Int!
+
+  """Number of traces in this cluster"""
+  size: Int!
+
+  """Proportion of traces in this cluster with badness > 0.5"""
+  badnessRate: Float!
+
+  """Average badness score of traces in this cluster"""
+  avgBadness: Float!
+
+  """Most common intent classification in this cluster"""
+  dominantIntent: String
+
+  """Most common route/workflow in this cluster"""
+  dominantRoute: String
+
+  """Most common LLM model used in this cluster"""
+  dominantModel: String
+
+  """Representative trace IDs for drilldown"""
+  exampleTraceIds: [String!]!
+
+  """Whether this cluster is problematic (badness_rate > 0.3)"""
+  isProblematic: Boolean!
+}
+
 """A connection to a list of items."""
 type TraceConnection {
   """Pagination data for this connection"""
@@ -3184,6 +3231,41 @@ type TraceCountByStatusTimeSeriesDataPoint {
 
 type TraceCountTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
+}
+
+type TraceDiscoveryRun {
+  """Unique identifier for the run"""
+  id: ID!
+
+  """When the discovery run started"""
+  startedAt: DateTime!
+
+  """When the discovery run completed (null if still running)"""
+  completedAt: DateTime
+
+  """Status of the run: 'running', 'completed', or 'failed'"""
+  status: String!
+
+  """Total number of traces analyzed"""
+  totalTraces: Int
+
+  """Overall badness rate across all traces"""
+  baselineBadness: Float
+
+  """Error message if the run failed"""
+  errorMessage: String
+
+  """Discovered clusters, sorted by badness rate descending"""
+  clusters: [TraceCluster!]!
+
+  """Top slices by lift, filtered for significance"""
+  topSlices: [TraceSlice!]!
+
+  """Number of clusters discovered"""
+  numClusters: Int!
+
+  """Number of significant slices"""
+  numSignificantSlices: Int!
 }
 
 """An edge in a connection."""
@@ -3223,6 +3305,40 @@ type TraceRetentionRuleMaxDays {
 type TraceRetentionRuleMaxDaysOrCount {
   maxDays: Float!
   maxCount: Int!
+}
+
+type TraceSlice {
+  """Unique identifier for the slice"""
+  id: ID!
+
+  """
+  Attribute values defining this slice, e.g. {intent: 'research', model: 'gpt-4o'}
+  """
+  attributes: JSON!
+
+  """Number of traces matching this slice"""
+  size: Int!
+
+  """Proportion of bad traces in this slice"""
+  badnessRate: Float!
+
+  """Overall badness rate for comparison"""
+  baselineRate: Float!
+
+  """Ratio of slice badness to baseline (>1 means worse than average)"""
+  lift: Float!
+
+  """Statistical significance of the lift"""
+  pValue: Float!
+
+  """Sample trace IDs from this slice"""
+  sampleTraceIds: [String!]
+
+  """Whether this slice is statistically significant (p < 0.05)"""
+  isSignificant: Boolean!
+
+  """Human-readable attribute string"""
+  attributeString: String!
 }
 
 type TraceTokenCostTimeSeries {

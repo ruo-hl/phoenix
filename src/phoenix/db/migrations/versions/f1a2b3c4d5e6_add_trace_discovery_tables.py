@@ -1,7 +1,7 @@
 """add trace discovery tables
 
 Revision ID: f1a2b3c4d5e6
-Revises: 8a3764fe7f1a
+Revises: deb2c81c0bb2
 Create Date: 2025-01-13 12:00:00.000000
 
 """
@@ -40,7 +40,7 @@ JSON_ = (
 
 # revision identifiers, used by Alembic.
 revision: str = "f1a2b3c4d5e6"
-down_revision: Union[str, None] = "8a3764fe7f1a"
+down_revision: Union[str, None] = "deb2c81c0bb2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

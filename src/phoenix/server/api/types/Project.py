@@ -54,6 +54,7 @@ from phoenix.trace.dsl import SpanFilter
 DEFAULT_PAGE_SIZE = 30
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+    from phoenix.server.api.types.TraceDiscovery import TraceDiscoveryRun
 
 
 @strawberry.type
@@ -755,9 +756,8 @@ class Project(Node):
     async def latest_discovery_run(
         self,
         info: Info[Context, None],
-    ) -> Optional["TraceDiscoveryRun"]:
+    ) -> Optional[Annotated["TraceDiscoveryRun", lazy(".TraceDiscovery")]]:
         from phoenix.server.api.helpers.discovery import get_latest_discovery_run
-        from phoenix.server.api.types.TraceDiscovery import TraceDiscoveryRun
 
         async with info.context.db() as session:
             return await get_latest_discovery_run(session, self.id)
@@ -769,9 +769,8 @@ class Project(Node):
         self,
         info: Info[Context, None],
         limit: int = 10,
-    ) -> list["TraceDiscoveryRun"]:
+    ) -> list[Annotated["TraceDiscoveryRun", lazy(".TraceDiscovery")]]:
         from phoenix.server.api.helpers.discovery import get_discovery_runs
-        from phoenix.server.api.types.TraceDiscovery import TraceDiscoveryRun
 
         async with info.context.db() as session:
             return await get_discovery_runs(session, self.id, limit=limit)
