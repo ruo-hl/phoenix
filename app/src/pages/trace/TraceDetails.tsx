@@ -60,6 +60,7 @@ export function TraceDetails(props: TraceDetailsProps) {
       query TraceDetailsQuery($traceId: ID!, $id: ID!) {
         project: node(id: $id) {
           ... on Project {
+            name
             trace(traceId: $traceId) {
               projectSessionId
               ...ConnectedTraceTree
@@ -112,8 +113,8 @@ export function TraceDetails(props: TraceDetailsProps) {
   const rootSpan = rootSpans[0];
   const selectedSpanNodeId = urlSpanNodeId ?? rootSpan.id;
 
-  // Workflow health analysis - need project name from URL params
-  const { projectId: projectName } = useParams();
+  // Workflow health analysis
+  const projectName = data.project.name;
   const [showWorkflowGraph, setShowWorkflowGraph] = useState(false);
   const { analysis: workflowAnalysis } = useTraceWorkflow({
     projectName: projectName || "",

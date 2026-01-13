@@ -16,7 +16,7 @@ export interface Anomaly {
   severity: "low" | "medium" | "high" | "critical";
   description: string;
   evidence: Record<string, unknown>;
-  affected_spans: string[];
+  affected_spans?: string[];
 }
 
 export interface GraphNode {
@@ -113,27 +113,33 @@ export function useTracesHealth(
   const [error, setError] = useState<string | null>(null);
 
   const fetchHealth = useCallback(async () => {
-    if (!enabled || !projectName) return;
+    if (!enabled || !projectName) {
+      console.log("[useTracesHealth] Skipped: enabled=", enabled, "projectName=", projectName);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
+    const url = `${OBS_AGENT_URL}/api/traces/${encodeURIComponent(projectName)}/health?hours=${hours}&limit=${limit}`;
+    console.log("[useTracesHealth] Fetching:", url);
+
     try {
-      const response = await fetch(
-        `${OBS_AGENT_URL}/api/traces/${encodeURIComponent(projectName)}/health?hours=${hours}&limit=${limit}`
-      );
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data: TraceHealth[] = await response.json();
+      console.log("[useTracesHealth] Got", data.length, "results for project:", projectName);
       const scoreMap = new Map<string, number>();
       for (const item of data) {
         scoreMap.set(item.trace_id, item.health_score);
       }
       setHealthScores(scoreMap);
     } catch (err) {
+      console.error("[useTracesHealth] Error:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch health");
     } finally {
       setIsLoading(false);
@@ -184,10 +190,11 @@ export function useTraceWorkflow(
     setIsLoading(true);
     setError(null);
 
+    const url = `${OBS_AGENT_URL}/api/traces/${encodeURIComponent(projectName)}/${encodeURIComponent(traceId)}/workflow?include_graph=${includeGraph}`;
+    console.log("[useTraceWorkflow] Fetching:", url);
+
     try {
-      const response = await fetch(
-        `${OBS_AGENT_URL}/api/traces/${encodeURIComponent(projectName)}/${encodeURIComponent(traceId)}/workflow?include_graph=${includeGraph}`
-      );
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);

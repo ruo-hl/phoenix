@@ -330,7 +330,7 @@ export function TracesTable(props: TracesTableProps) {
   // Fetch workflow health scores for traces
   const { healthScores } = useTracesHealth({
     projectName: data.name,
-    hours: 1,
+    hours: 24 * 7, // Look back 7 days
     limit: 100,
     enabled: !!data.name,
   });

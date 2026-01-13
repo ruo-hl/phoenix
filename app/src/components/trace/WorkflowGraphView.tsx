@@ -152,7 +152,9 @@ export function WorkflowGraphView({
 
   // Get anomalies affecting a specific node
   const getNodeAnomalies = (nodeId: string): Anomaly[] => {
-    return analysis.anomalies.filter((a) => a.affected_spans.includes(nodeId));
+    return analysis.anomalies.filter((a) =>
+      a.affected_spans?.includes(nodeId) ?? false
+    );
   };
 
   return (
@@ -430,7 +432,7 @@ function AnomalySummary({ anomalies }: { anomalies: Anomaly[] }) {
         justifyContent="center"
         height="100%"
       >
-        <Icon svg={<Icons.CheckCircleOutline />} color="success" />
+        <Icon svg={<Icons.CheckmarkCircleOutline />} color="success" />
         <Text size="S" color="text-700">
           No workflow issues detected
         </Text>
@@ -501,7 +503,7 @@ function SequenceView({
               </span>
               {index < sortedNodes.length - 1 && (
                 <Icon
-                  svg={<Icons.ArrowForwardOutline />}
+                  svg={<Icons.ArrowIosForwardOutline />}
                   color="grey-500"
                   css={css`
                     font-size: 12px;
