@@ -8,6 +8,7 @@ from phoenix.server.api.mutations.chat_mutations import (
 from phoenix.server.api.mutations.dataset_label_mutations import DatasetLabelMutationMixin
 from phoenix.server.api.mutations.dataset_mutations import DatasetMutationMixin
 from phoenix.server.api.mutations.dataset_split_mutations import DatasetSplitMutationMixin
+from phoenix.server.api.mutations.discovery_mutations import DiscoveryMutationMixin
 from phoenix.server.api.mutations.experiment_mutations import ExperimentMutationMixin
 from phoenix.server.api.mutations.export_events_mutations import ExportEventsMutationMixin
 from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
@@ -35,6 +36,7 @@ class Mutation(
     DatasetLabelMutationMixin,
     DatasetMutationMixin,
     DatasetSplitMutationMixin,
+    DiscoveryMutationMixin,
     ExperimentMutationMixin,
     ExportEventsMutationMixin,
     ModelMutationMixin,

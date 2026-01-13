@@ -749,6 +749,33 @@ class Project(Node):
             )
         return updated_at
 
+    @strawberry.field(
+        description="Get the most recent completed trace discovery run for this project"
+    )
+    async def latest_discovery_run(
+        self,
+        info: Info[Context, None],
+    ) -> Optional["TraceDiscoveryRun"]:
+        from phoenix.server.api.helpers.discovery import get_latest_discovery_run
+        from phoenix.server.api.types.TraceDiscovery import TraceDiscoveryRun
+
+        async with info.context.db() as session:
+            return await get_latest_discovery_run(session, self.id)
+
+    @strawberry.field(
+        description="Get recent trace discovery runs for this project"
+    )
+    async def discovery_runs(
+        self,
+        info: Info[Context, None],
+        limit: int = 10,
+    ) -> list["TraceDiscoveryRun"]:
+        from phoenix.server.api.helpers.discovery import get_discovery_runs
+        from phoenix.server.api.types.TraceDiscovery import TraceDiscoveryRun
+
+        async with info.context.db() as session:
+            return await get_discovery_runs(session, self.id, limit=limit)
+
     @strawberry.field
     async def span_count_time_series(
         self,

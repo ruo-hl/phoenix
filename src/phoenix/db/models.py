@@ -2084,3 +2084,92 @@ class SpanCostDetail(HasId):
             "is_prompt",
         ),
     )
+
+
+# =============================================================================
+# Trace Discovery Models
+# =============================================================================
+
+
+class TraceDiscoveryRun(HasId):
+    """A discovery run analyzing traces for a project."""
+
+    __tablename__ = "trace_discovery_runs"
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    completed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), server_default=text("'running'"))
+    config: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, nullable=True)
+    summary: Mapped[Optional[dict[str, Any]]] = mapped_column(JsonDict, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(nullable=True)
+    total_traces: Mapped[Optional[int]] = mapped_column(nullable=True)
+    baseline_badness: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    # Relationships
+    project: Mapped["Project"] = relationship("Project")
+    clusters: Mapped[list["TraceCluster"]] = relationship(
+        "TraceCluster",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    slices: Mapped[list["TraceSlice"]] = relationship(
+        "TraceSlice",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class TraceCluster(HasId):
+    """A cluster of similar traces discovered during analysis."""
+
+    __tablename__ = "trace_clusters"
+
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("trace_discovery_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    cluster_index: Mapped[int] = mapped_column(nullable=False)
+    size: Mapped[int] = mapped_column(nullable=False)
+    badness_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    avg_badness: Mapped[float] = mapped_column(Float, nullable=False)
+    dominant_intent: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    dominant_route: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    dominant_model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    example_trace_ids: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JsonList, nullable=True)
+
+    # Relationships
+    run: Mapped["TraceDiscoveryRun"] = relationship("TraceDiscoveryRun", back_populates="clusters")
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "cluster_index"),
+    )
+
+
+class TraceSlice(HasId):
+    """A slice (attribute combination) with elevated badness rate."""
+
+    __tablename__ = "trace_slices"
+
+    run_id: Mapped[int] = mapped_column(
+        ForeignKey("trace_discovery_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    attributes: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    size: Mapped[int] = mapped_column(nullable=False)
+    badness_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    baseline_rate: Mapped[float] = mapped_column(Float, nullable=False)
+    lift: Mapped[float] = mapped_column(Float, nullable=False)
+    p_value: Mapped[float] = mapped_column(Float, nullable=False)
+    sample_trace_ids: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JsonList, nullable=True)
+
+    # Relationships
+    run: Mapped["TraceDiscoveryRun"] = relationship("TraceDiscoveryRun", back_populates="slices")

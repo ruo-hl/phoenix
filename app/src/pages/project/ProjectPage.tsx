@@ -81,7 +81,7 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
+const TABS = ["spans", "traces", "sessions", "issues", "metrics", "config"] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -94,8 +94,9 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   spans: 0,
   traces: 1,
   sessions: 2,
-  metrics: 3,
-  config: 4,
+  issues: 3,
+  metrics: 4,
+  config: 5,
 };
 
 export function ProjectPageContent({
@@ -204,9 +205,12 @@ export function ProjectPageContent({
           // navigate to the sessions tab
           navigate(`${rootPath}/sessions`);
         } else if (index === 3) {
+          // navigate to the issues tab
+          navigate(`${rootPath}/issues`);
+        } else if (index === 4) {
           // navigate to the metrics tab
           navigate(`${rootPath}/metrics`);
-        } else if (index === 4) {
+        } else if (index === 5) {
           // navigate to the config tab
           navigate(`${rootPath}/config`);
         } else {
@@ -250,6 +254,7 @@ export function ProjectPageContent({
               <Tab id="spans">Spans</Tab>
               <Tab id="traces">Traces</Tab>
               <Tab id="sessions">Sessions</Tab>
+              <Tab id="issues">Issues</Tab>
               <Tab id="metrics">Metrics</Tab>
               <Tab id="config">Config</Tab>
             </TabList>
@@ -260,6 +265,9 @@ export function ProjectPageContent({
               <Outlet />
             </LazyTabPanel>
             <LazyTabPanel padded={false} id="sessions">
+              <Outlet />
+            </LazyTabPanel>
+            <LazyTabPanel padded={false} id="issues">
               <Outlet />
             </LazyTabPanel>
             <LazyTabPanel padded={false} id="metrics">

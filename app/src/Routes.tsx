@@ -62,6 +62,7 @@ import {
   PlaygroundPage,
   ProfilePage,
   ProjectIndexPage,
+  ProjectIssuesPage,
   projectLoader,
   ProjectLoaderData,
   ProjectMetricsPage,
@@ -203,6 +204,7 @@ const router = createBrowserRouter(
                     loader={sessionLoader}
                   />
                 </Route>
+                <Route path="issues" element={<ProjectIssuesPage />} />
                 <Route path="config" element={<ProjectConfigPage />} />
                 <Route path="metrics" element={<ProjectMetricsPage />} />
               </Route>
