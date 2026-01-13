@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useTransition } from "react";
+import { Suspense, useCallback, useState, useTransition } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { useParams } from "react-router";
 import { css } from "@emotion/react";
@@ -18,14 +18,14 @@ import { ProjectIssuesPageMutation } from "./__generated__/ProjectIssuesPageMuta
 import { ProjectIssuesPageQuery } from "./__generated__/ProjectIssuesPageQuery.graphql";
 
 const containerCSS = css`
-  padding: var(--ac-global-dimension-size-200);
+  padding: var(--ac-global-dimension-size-400);
   overflow-y: auto;
 `;
 
 const gridCSS = css`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--ac-global-dimension-size-200);
+  gap: var(--ac-global-dimension-size-400);
 
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
@@ -33,13 +33,15 @@ const gridCSS = css`
 `;
 
 const clusterCardCSS = css`
-  padding: var(--ac-global-dimension-size-100);
+  padding: var(--ac-global-dimension-size-250);
   border-radius: var(--ac-global-rounding-medium);
-  background-color: var(--ac-global-color-grey-100);
+  background-color: var(--ac-global-color-grey-75);
+  border: 1px solid var(--ac-global-color-grey-200);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
   &:hover {
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--ac-global-color-grey-100);
+    border-color: var(--ac-global-color-grey-300);
   }
 `;
 
@@ -54,6 +56,26 @@ const badnessFillCSS = css`
   height: 100%;
   background-color: var(--ac-global-color-danger);
   transition: width 0.3s ease;
+`;
+
+const cardContentCSS = css`
+  padding: var(--ac-global-dimension-size-300);
+  padding-top: var(--ac-global-dimension-size-200);
+  min-height: 200px;
+  max-height: 600px;
+  overflow-y: auto;
+`;
+
+const emptyCardContentCSS = css`
+  padding: var(--ac-global-dimension-size-600) var(--ac-global-dimension-size-400);
+`;
+
+const emptyStateCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  color: var(--ac-global-text-color-700);
 `;
 
 function ClusterCard({
@@ -75,10 +97,10 @@ function ClusterCard({
 
   return (
     <div css={clusterCardCSS}>
-      <Flex direction="column" gap="size-100">
+      <Flex direction="column" gap="size-150">
         <Flex justifyContent="space-between" alignItems="center">
           <Heading level={4}>Cluster {cluster.clusterIndex}</Heading>
-          <Text color={badnessPercent > 30 ? "danger" : "default"}>
+          <Text color={badnessPercent > 30 ? "danger" : "default"} weight="bold">
             {badnessPercent}% bad
           </Text>
         </Flex>
@@ -88,15 +110,17 @@ function ClusterCard({
             style={{ width: `${badnessPercent}%` }}
           />
         </div>
-        <Text size="S" color="text-700">
-          {cluster.size} traces
-        </Text>
-        {cluster.dominantIntent && (
-          <Text size="S">Intent: {cluster.dominantIntent}</Text>
-        )}
-        {cluster.dominantModel && (
-          <Text size="S">Model: {cluster.dominantModel}</Text>
-        )}
+        <Flex direction="column" gap="size-50">
+          <Text size="S" color="text-700">
+            {cluster.size} traces
+          </Text>
+          {cluster.dominantIntent && cluster.dominantIntent !== "unknown" && (
+            <Text size="S">Intent: {cluster.dominantIntent}</Text>
+          )}
+          {cluster.dominantModel && cluster.dominantModel !== "unknown" && cluster.dominantModel !== "None" && (
+            <Text size="S">Model: {cluster.dominantModel}</Text>
+          )}
+        </Flex>
       </Flex>
     </div>
   );
@@ -119,18 +143,19 @@ function SliceRow({
 
   return (
     <View
-      padding="size-100"
+      paddingY="size-200"
+      paddingX="size-200"
       borderBottomWidth="thin"
-      borderBottomColor="grey-300"
+      borderBottomColor="grey-200"
     >
       <Flex justifyContent="space-between" alignItems="center">
-        <Flex direction="column" gap="size-50">
+        <Flex direction="column" gap="size-75">
           <Text weight="bold">{slice.attributeString}</Text>
           <Text size="S" color="text-700">
             {slice.size} traces, {Math.round(slice.badnessRate * 100)}% bad
           </Text>
         </Flex>
-        <Flex direction="column" alignItems="end">
+        <Flex direction="column" alignItems="end" gap="size-50">
           <Text color={liftColor} weight="bold">
             {slice.lift.toFixed(2)}x lift
           </Text>
@@ -145,6 +170,7 @@ function SliceRow({
 
 function IssuesContent({ projectId }: { projectId: string }) {
   const [isPending, startTransition] = useTransition();
+  const [fetchKey, setFetchKey] = useState(0);
 
   const data = useLazyLoadQuery<ProjectIssuesPageQuery>(
     graphql`
@@ -187,7 +213,7 @@ function IssuesContent({ projectId }: { projectId: string }) {
       }
     `,
     { id: projectId },
-    { fetchPolicy: "store-and-network" }
+    { fetchPolicy: "network-only", fetchKey }
   );
 
   const [commitMutation, isMutating] =
@@ -222,6 +248,10 @@ function IssuesContent({ projectId }: { projectId: string }) {
             daysBack: 7,
           },
         },
+        onCompleted: () => {
+          // Refetch the query to show updated results
+          setFetchKey((prev) => prev + 1);
+        },
       });
     });
   }, [commitMutation, projectId]);
@@ -230,10 +260,10 @@ function IssuesContent({ projectId }: { projectId: string }) {
 
   return (
     <div css={containerCSS}>
-      <Flex direction="column" gap="size-200">
+      <Flex direction="column" gap="size-300">
         {/* Header */}
         <Flex justifyContent="space-between" alignItems="center">
-          <Flex direction="column" gap="size-50">
+          <Flex direction="column" gap="size-100">
             <Heading level={2}>Issue Discovery</Heading>
             {discoveryRun && (
               <Text color="text-700">
@@ -262,45 +292,56 @@ function IssuesContent({ projectId }: { projectId: string }) {
 
         {!discoveryRun ? (
           <Card title="No Discovery Results">
-            <Flex
-              direction="column"
-              alignItems="center"
-              justifyContent="center"
-              gap="size-200"
-              UNSAFE_style={{ padding: "48px 48px 64px 48px" }}
-            >
-              <Text color="text-700">
-                Run discovery to analyze your traces and find failure patterns.
-              </Text>
-              <Button variant="primary" onPress={handleRunDiscovery}>
-                Run Discovery
-              </Button>
-            </Flex>
+            <div css={emptyCardContentCSS}>
+              <Flex
+                direction="column"
+                alignItems="center"
+                justifyContent="center"
+                gap="size-300"
+              >
+                <Text color="text-700">
+                  Run discovery to analyze your traces and find failure patterns.
+                </Text>
+                <Button variant="primary" onPress={handleRunDiscovery}>
+                  Run Discovery
+                </Button>
+              </Flex>
+            </div>
           </Card>
         ) : (
           <div css={gridCSS}>
             {/* Clusters Section */}
             <Card title="Top Clusters" subTitle="Clusters with highest badness rates">
-              <Flex direction="column" gap="size-100">
-                {discoveryRun.clusters.slice(0, 5).map((cluster) => (
-                  <ClusterCard key={cluster.id} cluster={cluster} />
-                ))}
-                {discoveryRun.clusters.length === 0 && (
-                  <Text color="text-700">No clusters found</Text>
+              <div css={cardContentCSS}>
+                {discoveryRun.clusters.length > 0 ? (
+                  <Flex direction="column" gap="size-200">
+                    {discoveryRun.clusters.slice(0, 5).map((cluster) => (
+                      <ClusterCard key={cluster.id} cluster={cluster} />
+                    ))}
+                  </Flex>
+                ) : (
+                  <div css={emptyStateCSS}>
+                    <Text color="text-700">No clusters found</Text>
+                  </div>
                 )}
-              </Flex>
+              </div>
             </Card>
 
             {/* Slices Section */}
             <Card title="Top Slices" subTitle="Attribute combinations with elevated badness">
-              <Flex direction="column">
-                {discoveryRun.topSlices.slice(0, 10).map((slice) => (
-                  <SliceRow key={slice.id} slice={slice} />
-                ))}
-                {discoveryRun.topSlices.length === 0 && (
-                  <Text color="text-700">No significant slices found</Text>
+              <div css={cardContentCSS}>
+                {discoveryRun.topSlices.length > 0 ? (
+                  <Flex direction="column">
+                    {discoveryRun.topSlices.slice(0, 10).map((slice) => (
+                      <SliceRow key={slice.id} slice={slice} />
+                    ))}
+                  </Flex>
+                ) : (
+                  <div css={emptyStateCSS}>
+                    <Text color="text-700">No significant slices found</Text>
+                  </div>
                 )}
-              </Flex>
+              </div>
             </Card>
           </div>
         )}
